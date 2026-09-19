@@ -7,4 +7,39 @@
 - [กติกาทางธุรกิจ](./docs/business-rules.md)
 - [บันทึกการตัดสินใจเชิงสถาปัตยกรรม](./docs/adr)
 
-ยังไม่เริ่มพัฒนา เอกสารทั้งหมดเป็นผลของ design session
+## รันในเครื่อง
+
+ต้องมี Node 22, pnpm และ Docker
+
+```bash
+pnpm install
+cp .env.example .env
+pnpm db:up          # Postgres บนพอร์ต 5433 จาก docker-compose.yml
+pnpm db:migrate     # ยังไม่มี migration จนกว่า schema จะถูกเพิ่ม
+pnpm dev
+```
+
+## คำสั่งที่ใช้บ่อย
+
+|                                |                                                             |
+| ------------------------------ | ----------------------------------------------------------- |
+| `pnpm test:unit`               | กติกาทางธุรกิจล้วน ๆ ไม่แตะฐานข้อมูล รันได้ระหว่างเขียนโค้ด |
+| `pnpm test:integration`        | ต้อง `pnpm db:up` ก่อน ใช้ database `sunpath_test`          |
+| `pnpm test:e2e`                | เส้นทางที่ 1 ด้วย Playwright                                |
+| `pnpm lint` · `pnpm typecheck` | เกณฑ์เดียวกับที่ CI ใช้                                     |
+| `pnpm db:reset`                | ลบ volume แล้วสร้างใหม่ทั้งชุด                              |
+
+## โครงไฟล์
+
+```
+src/app/                หน้าและ Server Action (เปลือกบาง: zod → use-case)
+src/server/domain/      ฟังก์ชันบริสุทธิ์ — กติกาทางธุรกิจ รับ now: Date เข้ามาเสมอ
+src/server/use-cases/   ประกอบ domain เข้ากับฐานข้อมูล คุม transaction
+src/server/infra/       Prisma, EmailSender, ที่เก็บรูป
+tests/integration/      ยิงที่ชั้น use-case ใช้ Postgres จริง
+tests/e2e/              Playwright
+```
+
+ขอบเขตระหว่างชั้นถูกบังคับด้วย eslint ตาม [ADR 0001](./docs/adr/0001-nextjs-fullstack-with-isolated-domain-layer.md) — ชั้น `domain` import `react`, `next` หรือ `@prisma/client` ไม่ได้
+
+สถานะ: scaffold เสร็จแล้ว ยังไม่มี Prisma model และหน้าจอ

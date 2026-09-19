@@ -1,0 +1,25 @@
+# ฐานข้อมูลสำหรับเครื่องตัวเองและ integration test (spec §13, ADR 0002)
+# พอร์ต 5433 เพื่อไม่ชนกับ Postgres ที่อาจติดตั้งไว้บนเครื่องอยู่แล้ว
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: sunpath-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: sunpath
+      POSTGRES_PASSWORD: sunpath
+      POSTGRES_DB: sunpath
+    ports:
+      - "5433:5432"
+    volumes:
+      # postgres 18 ย้ายที่เก็บข้อมูลไปไว้ใต้ /var/lib/postgresql ไม่ใช่ /var/lib/postgresql/data
+      - sunpath-pgdata:/var/lib/postgresql
+      - ./docker/postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sunpath -d sunpath"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  sunpath-pgdata:

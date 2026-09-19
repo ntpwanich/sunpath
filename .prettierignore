@@ -1,0 +1,13 @@
+node_modules/
+.next/
+out/
+build/
+coverage/
+test-results/
+playwright-report/
+pnpm-lock.yaml
+src/generated/
+prisma/migrations/
+
+# เอกสารออกแบบเป็นผลของ design session — prettier จัดตารางภาษาไทยใหม่แล้ว diff บวมโดยไม่ได้อะไร
+*.md
