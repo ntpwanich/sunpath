@@ -12,3 +12,6 @@ coverage/
 test-results/
 playwright-report/
 .DS_Store
+*.pem
+.pnpm-debug.log*
+.turbo/

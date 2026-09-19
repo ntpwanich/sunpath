@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: sunpath
+          POSTGRES_PASSWORD: sunpath
+          POSTGRES_DB: sunpath_test
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U sunpath -d sunpath_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://sunpath:sunpath@localhost:5433/sunpath_test?schema=public
+      TEST_DATABASE_URL: postgresql://sunpath:sunpath@localhost:5433/sunpath_test?schema=public
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm exec prisma generate
+
+      - run: pnpm format:check
+
+      - run: pnpm lint
+
+      - run: pnpm typecheck
+
+      - run: pnpm test:unit
+
+      - run: pnpm test:integration
