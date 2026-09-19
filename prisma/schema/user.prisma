@@ -1,0 +1,26 @@
+enum UserRole {
+  SALES_MANAGER
+  SALES
+  SURVEYOR
+  ADMIN_STAFF
+  SYSTEM
+}
+
+model User {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  userName  String
+  email     String   @unique
+  userRole  UserRole
+  isActive  Boolean
+  createdAt DateTime
+
+  ownedOpportunities         Opportunity[]
+  stageChanges               OpportunityStageLog[]
+  qualificationDecisions     OpportunityQualification[]
+  activities                 OpportunityActivity[]
+  assignedTasks              OpportunityTask[]
+  surveysToConduct           Survey[]                            @relation("SurveySurveyor")
+  surveysAssigned            Survey[]                            @relation("SurveyAssignedBy")
+  discountApprovalsRequested QuotationRevisionDiscountApproval[] @relation("DiscountRequestedBy")
+  discountApprovalsDecided   QuotationRevisionDiscountApproval[] @relation("DiscountApprovedBy")
+}

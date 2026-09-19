@@ -27,9 +27,6 @@
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
-  "prisma": {
-    "seed": "tsx prisma/seed/index.ts"
-  },
   "dependencies": {
     "@prisma/client": "^6",
     "class-variance-authority": "^0.7.1",
