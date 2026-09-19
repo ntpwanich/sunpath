@@ -1,0 +1,79 @@
+enum QuotationRevisionState {
+  DRAFT
+  PENDING_APPROVAL
+  ISSUED
+  ACCEPTED
+  DECLINED
+}
+
+model Quotation {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  opportunityId   String   @unique @db.Uuid
+  quotationNumber String   @unique // เลขที่ใบเป็นของงานขาย ส่วนเลขเวอร์ชันเป็นของแต่ละฉบับ
+  createdAt       DateTime
+
+  opportunity Opportunity         @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  revisions   QuotationRevision[]
+}
+
+model QuotationRevision {
+  id                 String                 @id @default(uuid(7)) @db.Uuid
+  quotationId        String                 @db.Uuid
+  versionNumber      Int
+  previousRevisionId String?                @unique @db.Uuid
+  revisionState      QuotationRevisionState
+  createdAt          DateTime
+  issuedAt           DateTime? // มีค่าเมื่อไหร่ ห้ามแก้ฟิลด์ใดในแถวนี้อีก การต่อรองต้องออกเป็นฉบับใหม่
+  respondedAt        DateTime?
+
+  systemSizeKwp               Decimal @db.Decimal(6, 2)
+  estimatedInstallationDays   Int
+  basePriceBaht               Int
+  travelSurchargeBaht         Int
+  discountPercent             Decimal @db.Decimal(5, 2)
+  discountAmountBaht          Int
+  totalPriceBaht              Int
+  estimatedMonthlySavingsBaht Int
+  paybackYearsMin             Decimal @db.Decimal(3, 1)
+  paybackYearsMax             Decimal @db.Decimal(3, 1)
+
+  quotation        Quotation                          @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  previousRevision QuotationRevision?                 @relation("RevisionChain", fields: [previousRevisionId], references: [id])
+  nextRevision     QuotationRevision?                 @relation("RevisionChain")
+  items            QuotationRevisionItem[]
+  discountApproval QuotationRevisionDiscountApproval?
+  win              OpportunityWin?
+
+  @@unique([quotationId, versionNumber])
+}
+
+model QuotationRevisionItem {
+  id              String @id @default(uuid(7)) @db.Uuid
+  revisionId      String @db.Uuid
+  itemDescription String
+  quantity        Int
+  unitPriceBaht   Int
+  lineTotalBaht   Int
+  sortOrder       Int
+
+  revision QuotationRevision @relation(fields: [revisionId], references: [id], onDelete: Cascade)
+
+  @@index([revisionId, sortOrder])
+}
+
+// ส่วนลดที่เกินเพดานของเซลส์ทำให้ฉบับนั้นค้างอยู่จนกว่าผู้จัดการจะตัดสิน
+// ปล่อยออกไปก่อนแล้วค่อยขอไม่ได้ เพราะฉบับที่ออกแล้วถอยกลับไม่ได้
+model QuotationRevisionDiscountApproval {
+  id                String    @id @default(uuid(7)) @db.Uuid
+  revisionId        String    @unique @db.Uuid
+  requestedByUserId String    @db.Uuid
+  requestedAt       DateTime
+  approvedByUserId  String?   @db.Uuid
+  approvedAt        DateTime?
+  rejectedAt        DateTime?
+  approvalNote      String?
+
+  revision    QuotationRevision @relation(fields: [revisionId], references: [id], onDelete: Cascade)
+  requestedBy User              @relation("DiscountRequestedBy", fields: [requestedByUserId], references: [id])
+  approvedBy  User?             @relation("DiscountApprovedBy", fields: [approvedByUserId], references: [id])
+}

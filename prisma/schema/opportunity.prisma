@@ -1,0 +1,202 @@
+enum Segment {
+  RESIDENTIAL
+  COMMERCIAL
+}
+
+enum LeadSource {
+  LINE_OA
+  FACEBOOK_ADS
+  WEBSITE_FORM
+  TRADE_FAIR
+  REFERRAL
+}
+
+enum RoofType {
+  METAL_SHEET
+  CONCRETE_DECK
+  CORRUGATED_TILE
+  CPAC_TILE
+  DIAMOND_TILE
+}
+
+enum BuildingOwnership {
+  OWNED
+  RENTED
+  MORTGAGED
+}
+
+enum Stage {
+  NEW_LEAD
+  CONTACTED
+  QUALIFIED
+  SURVEY_SCHEDULED
+  SURVEYED
+  QUOTED
+  NEGOTIATING
+  CLOSED_WON
+  CLOSED_LOST
+}
+
+enum QualificationVerdict {
+  PASS
+  NEEDS_REVIEW
+  REJECT
+}
+
+enum LossReason {
+  PRICE
+  CHOSE_COMPETITOR
+  NOT_QUALIFIED
+  ROOF_UNSUITABLE
+  POSTPONED
+  UNREACHABLE
+  OTHER
+}
+
+enum ActivityKind {
+  CALL
+  LINE_MESSAGE
+  MEETING
+  NOTE
+}
+
+enum TaskKind {
+  FIRST_CONTACT
+  QUALIFY
+  SCHEDULE_SURVEY
+  ISSUE_QUOTATION
+  FOLLOW_UP_QUOTATION
+  CUSTOM
+}
+
+model Opportunity {
+  id          String     @id @default(uuid(7)) @db.Uuid
+  contactId   String     @db.Uuid
+  ownerUserId String     @db.Uuid
+  leadSource  LeadSource
+
+  // เท่ากับ contactId ตอนงานยังเปิดอยู่ และเป็น NULL ตอนปิด
+  // ทำให้ unique index บังคับได้ว่าคนหนึ่งคนมีงานที่ยังไม่ปิดได้ทีละงานเดียว
+  // ต้องเป็นคอลัมน์ซ้ำเพราะ Prisma ประกาศ partial unique index ไม่ได้
+  contactIdWhileOpen String? @unique @db.Uuid
+
+  // ข้อมูลหลังคาชุดนี้คือคำบอกเล่าของผู้สนใจตอนทักเข้ามา ไม่ใช่ความจริงของอาคาร
+  // ค่าที่วัดได้จริงอยู่ในผลสำรวจ และคนเดิมที่กลับมาอีกครั้งจะกรอกชุดใหม่ ไม่ทับของเดิม
+  segment                    Segment
+  province                   String // เป็น String เพราะเซลส์รับงานนอกพื้นที่บริการได้ถ้าระบุเหตุผล
+  district                   String
+  addressLine                String?
+  monthlyElectricityBillBaht Int
+  roofType                   RoofType
+  buildingOwnership          BuildingOwnership
+
+  currentStage Stage
+  createdAt    DateTime
+
+  contact       Contact                   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  owner         User                      @relation(fields: [ownerUserId], references: [id])
+  stageLogs     OpportunityStageLog[]
+  qualification OpportunityQualification?
+  activities    OpportunityActivity[]
+  tasks         OpportunityTask[]
+  surveys       Survey[]
+  quotation     Quotation?
+  win           OpportunityWin?
+  loss          OpportunityLoss?
+
+  @@index([ownerUserId, currentStage])
+  @@index([currentStage])
+  @@index([contactId])
+}
+
+model OpportunityStageLog {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  opportunityId   String   @db.Uuid
+  fromStage       Stage? // NULL คือแถวแรกตอนงานถูกสร้าง
+  toStage         Stage
+  changedAt       DateTime
+  changedByUserId String   @db.Uuid // งานที่ระบบสร้างเองใช้ user ที่มี role SYSTEM
+  transitionNote  String?
+
+  opportunity Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  changedBy   User        @relation(fields: [changedByUserId], references: [id])
+
+  @@index([opportunityId, changedAt])
+  @@index([toStage, changedAt])
+}
+
+model OpportunityQualification {
+  id                 String               @id @default(uuid(7)) @db.Uuid
+  opportunityId      String               @unique @db.Uuid
+  recommendedVerdict QualificationVerdict
+  decidedVerdict     QualificationVerdict
+  overrideReason     String? // บังคับกรอกเมื่อคำตัดสินต่างจากที่ระบบแนะนำ
+  decidedByUserId    String               @db.Uuid
+  decidedAt          DateTime
+
+  opportunity Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  decidedBy   User        @relation(fields: [decidedByUserId], references: [id])
+}
+
+model OpportunityActivity {
+  id            String       @id @default(uuid(7)) @db.Uuid
+  opportunityId String       @db.Uuid
+  authorUserId  String       @db.Uuid
+  activityKind  ActivityKind
+  occurredAt    DateTime
+  activityNote  String
+
+  opportunity   Opportunity      @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  author        User             @relation(fields: [authorUserId], references: [id])
+  completedTask OpportunityTask?
+
+  @@index([opportunityId, occurredAt])
+}
+
+model OpportunityTask {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  opportunityId  String    @db.Uuid
+  assigneeUserId String    @db.Uuid
+  taskKind       TaskKind
+  taskTitle      String
+  plannedFor     DateTime
+  completedAt    DateTime?
+
+  // ว่างได้ บางงานปิดเพราะมีใบเสนอราคาออก ไม่ใช่เพราะมีคนโทร
+  completedByActivityId String? @unique @db.Uuid
+
+  isSystemGenerated Boolean
+  createdAt         DateTime
+
+  opportunity         Opportunity          @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  assignee            User                 @relation(fields: [assigneeUserId], references: [id])
+  completedByActivity OpportunityActivity? @relation(fields: [completedByActivityId], references: [id])
+
+  @@index([assigneeUserId, completedAt, plannedFor])
+}
+
+model OpportunityWin {
+  id                        String    @id @default(uuid(7)) @db.Uuid
+  opportunityId             String    @unique @db.Uuid
+  acceptedRevisionId        String    @unique @db.Uuid
+  wonAt                     DateTime
+  contractValueBaht         Int
+  depositReceivedAt         DateTime?
+  handedOffToInstallationAt DateTime?
+
+  opportunity      Opportunity       @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  acceptedRevision QuotationRevision @relation(fields: [acceptedRevisionId], references: [id])
+}
+
+// แยกจาก OpportunityWin เพื่อให้เหตุผลที่แพ้เป็นคอลัมน์ที่ต้องกรอกเสมอ ไม่ใช่ฟิลด์ที่ว่างได้
+model OpportunityLoss {
+  id            String     @id @default(uuid(7)) @db.Uuid
+  opportunityId String     @unique @db.Uuid
+  lostAt        DateTime
+  lossReason    LossReason
+  lossNote      String?
+
+  opportunity Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+
+  @@index([lossReason])
+}

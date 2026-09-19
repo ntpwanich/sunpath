@@ -1,0 +1,59 @@
+enum SurveyTimeSlot {
+  MORNING
+  AFTERNOON
+}
+
+enum RoofCondition {
+  GOOD
+  FAIR
+  POOR
+}
+
+model Survey {
+  id                String         @id @default(uuid(7)) @db.Uuid
+  opportunityId     String         @db.Uuid
+  surveyorUserId    String         @db.Uuid
+  scheduledDate     DateTime       @db.Date
+  scheduledTimeSlot SurveyTimeSlot
+  assignedByUserId  String         @db.Uuid
+  assignedAt        DateTime
+  schedulingNote    String?
+
+  opportunity Opportunity   @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  surveyor    User          @relation("SurveySurveyor", fields: [surveyorUserId], references: [id])
+  assignedBy  User          @relation("SurveyAssignedBy", fields: [assignedByUserId], references: [id])
+  report      SurveyReport?
+
+  @@unique([surveyorUserId, scheduledDate, scheduledTimeSlot])
+  @@index([scheduledDate]) // ปฏิทินอ่านทีละสัปดาห์
+  @@index([opportunityId])
+}
+
+model SurveyReport {
+  id                       String        @id @default(uuid(7)) @db.Uuid
+  surveyId                 String        @unique @db.Uuid
+  reportedAt               DateTime
+  installableSystemSizeKwp Decimal       @db.Decimal(6, 2)
+  observedRoofType         RoofType // ที่ช่างเห็นหน้างาน อาจต่างจากที่ผู้สนใจบอกไว้
+  roofCondition            RoofCondition
+  roofLoadKgPerSqm         Decimal       @db.Decimal(5, 2) // เกิน 20 เข้าข่ายดัดแปลงอาคาร ต้องขอใบอนุญาต
+  distanceToPanelMeters    Decimal       @db.Decimal(5, 1)
+  shadingNote              String?
+  surveyorNote             String?
+
+  survey Survey              @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  photos SurveyReportPhoto[]
+}
+
+model SurveyReportPhoto {
+  id             String  @id @default(uuid(7)) @db.Uuid
+  surveyReportId String  @db.Uuid
+  blobUrl        String
+  isSeedPhoto    Boolean // false = ผู้เข้าชมอัปโหลดเอง ถูกล้างพร้อมไฟล์บน blob ทุกคืน
+  photoCaption   String?
+  sortOrder      Int
+
+  report SurveyReport @relation(fields: [surveyReportId], references: [id], onDelete: Cascade)
+
+  @@index([surveyReportId, sortOrder])
+}

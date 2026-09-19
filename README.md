@@ -36,10 +36,12 @@ src/app/                หน้าและ Server Action (เปลือก�
 src/server/domain/      ฟังก์ชันบริสุทธิ์ — กติกาทางธุรกิจ รับ now: Date เข้ามาเสมอ
 src/server/use-cases/   ประกอบ domain เข้ากับฐานข้อมูล คุม transaction
 src/server/infra/       Prisma, EmailSender, ที่เก็บรูป
+prisma/schema/          schema แยกตามกลุ่มตาราง ตั้งค่า path ไว้ใน prisma.config.ts
+prisma/migrations/      migration ที่ integration test รัน migrate deploy ก่อนเริ่มทุกครั้ง
 tests/integration/      ยิงที่ชั้น use-case ใช้ Postgres จริง
 tests/e2e/              Playwright
 ```
 
 ขอบเขตระหว่างชั้นถูกบังคับด้วย eslint ตาม [ADR 0001](./docs/adr/0001-nextjs-fullstack-with-isolated-domain-layer.md) — ชั้น `domain` import `react`, `next` หรือ `@prisma/client` ไม่ได้
 
-สถานะ: scaffold เสร็จแล้ว ยังไม่มี Prisma model และหน้าจอ
+สถานะ: scaffold และ schema เสร็จแล้ว (17 ตาราง ดู [spec §6](./docs/spec.md)) ยังไม่มีชั้น domain และหน้าจอ
